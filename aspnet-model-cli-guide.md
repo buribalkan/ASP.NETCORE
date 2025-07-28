@@ -68,7 +68,7 @@ Bu komut şunu yapar:
 
 ---
 
-## Özet Tablo
+## 🧠 Özet Tablo
 
 | Senaryo                      | Komut / Yöntem                                       |
 |------------------------------|------------------------------------------------------|
@@ -78,5 +78,5 @@ Bu komut şunu yapar:
 
 ---
 
-İstersen örneklerle birlikte `.dib` dosyası veya küçük bir demo proje de hazırlayabilirim.  
-🧠 Yardım istersen sadece belirtmen yeterli!
+
+ 
