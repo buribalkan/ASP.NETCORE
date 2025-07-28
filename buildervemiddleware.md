@@ -70,5 +70,4 @@ app.Run();
 
 ---
 
-> **Not:** İstersen minimal API, middleware örnekleri ve ileri seviye yapılandırma içeren `.dib` dosyası da hazırlayabilirim.  
-Nasıl devam edelim?
+
