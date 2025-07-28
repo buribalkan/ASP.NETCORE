@@ -68,7 +68,7 @@ string userName;
 
 ---
 
-## Örnek Hiyerarşi ve İsimlendirme
+## Hiyerarşi ve İsimlendirme Örneği
 
 ```
 /Models
