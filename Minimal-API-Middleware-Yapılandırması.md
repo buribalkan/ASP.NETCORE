@@ -1,6 +1,6 @@
 # ASP.NET Core Minimal API Middleware Yapılandırması (.NET CLI ile)
 
-.NET CLI (Command Line Interface) kullanarak `Program.cs` içindeki `builder` ve `app` ile middleware yapılandıran bir ASP.NET Core projesi oluşturma adımlarını ve temel komutları aşağıda paylaşıyorum.
+.NET CLI (Command Line Interface) kullanarak `Program.cs` içindeki `builder` ve `app` ile middleware yapılandıran bir ASP.NET Core projesi oluşturma adımları:
 
 ---
 
