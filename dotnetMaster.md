@@ -1779,6 +1779,1213 @@ app.MapHealthChecks("/health");
 ---
 
 
+# Mini Örnek – classlib Nedir? Nasıl Kullanılır?
+
+Bu mini örnek, **class library (classlib)** kavramını hızlıca ve net şekilde
+anlaman için hazırlanmıştır.
+
+---
+
+## 1️⃣ Senaryo
+
+Bir uygulamada **KDV hesaplama** logic’ini:
+- API’den
+- Console’dan
+- Test projelerinden
+
+tekrar tekrar kullanmak istiyoruz.
+
+➡️ Bu logic **classlib** içinde olmalı.
+
+---
+
+## 2️⃣ Class Library Oluşturma
+
+```bash
+dotnet new classlib -n TaxCalculator
+```
+
+Oluşan yapı:
+```text
+TaxCalculator/
+ ├─ Class1.cs
+ └─ TaxCalculator.csproj
+```
+
+`Class1.cs` dosyasını silebilirsin.
+
+---
+
+## 3️⃣ Classlib İçeriği
+
+📄 `TaxService.cs`
+
+```csharp
+namespace TaxCalculator;
+
+public class TaxService
+{
+    public decimal CalculateVat(decimal price)
+    {
+        return price * 0.20m;
+    }
+}
+```
+
+🔹 Bu proje:
+- Çalıştırılamaz
+- Sadece **referans alınır**
+
+---
+
+## 4️⃣ Console App Oluşturma
+
+```bash
+dotnet new console -n ShopApp
+```
+
+---
+
+## 5️⃣ Classlib Referans Ekleme
+
+```bash
+dotnet add ShopApp reference TaxCalculator
+```
+
+Kontrol:
+```bash
+dotnet list ShopApp reference
+```
+
+---
+
+## 6️⃣ Classlib Kullanımı
+
+📄 `Program.cs`
+
+```csharp
+using TaxCalculator;
+
+var taxService = new TaxService();
+
+var price = 100m;
+var vat = taxService.CalculateVat(price);
+
+Console.WriteLine($"KDV: {vat}");
+```
+
+Çalıştır:
+```bash
+dotnet run --project ShopApp
+```
+
+Çıktı:
+```text
+KDV: 20
+```
+
+---
+
+## 7️⃣ Classlib Ne Zaman Kullanılır?
+
+✅ Kullan:
+- Business logic
+- Domain kuralları
+- Ortak helper’lar
+- Repository / Service katmanı
+
+❌ Kullanma:
+- UI
+- HTTP / Controller
+- Console giriş noktası
+
+---
+
+## 8️⃣ Gerçek Proje İpucu
+
+Clean Architecture’da:
+```text
+Domain        → classlib
+Application   → classlib
+Infrastructure→ classlib
+API           → webapi
+```
+
+---
+
+
+# Mini Örnek – classlib + Dependency Injection (AddScoped)
+
+Bu mini örnek, bir **class library (classlib)** içindeki servisin
+**Dependency Injection (DI)** ile nasıl kullanıldığını net şekilde gösterir.
+
+---
+
+## 1️⃣ Senaryo
+
+Bir uygulamada **fiyat + KDV hesaplama** servisi olsun.
+Bu servis:
+- API’de
+- Console app’te
+- Test’lerde
+
+aynı şekilde kullanılabilsin.
+
+➡️ Logic **classlib**, yaşam süresi **Scoped** olacak.
+
+---
+
+## 2️⃣ Class Library Oluşturma
+
+```bash
+dotnet new classlib -n Pricing
+```
+
+---
+
+## 3️⃣ Servis ve Interface Tanımı (classlib)
+
+📄 `IPricingService.cs`
+
+```csharp
+namespace Pricing;
+
+public interface IPricingService
+{
+    decimal CalculateTotal(decimal price);
+}
+```
+
+📄 `PricingService.cs`
+
+```csharp
+namespace Pricing;
+
+public class PricingService : IPricingService
+{
+    public decimal CalculateTotal(decimal price)
+    {
+        var vat = price * 0.20m;
+        return price + vat;
+    }
+}
+```
+
+➡️ classlib içinde **DI yok**, sadece kod var.
+
+---
+
+## 4️⃣ API Projesi Oluşturma
+
+```bash
+dotnet new webapi -n Shop.Api
+```
+
+---
+
+## 5️⃣ Classlib Referans Ekleme
+
+```bash
+dotnet add Shop.Api reference Pricing
+```
+
+---
+
+## 6️⃣ Program.cs – AddScoped ile Kayıt
+
+📄 `Program.cs`
+
+```csharp
+using Pricing;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// DI registration
+builder.Services.AddScoped<IPricingService, PricingService>();
+
+builder.Services.AddControllers();
+var app = builder.Build();
+
+app.MapControllers();
+app.Run();
+```
+
+🔹 `AddScoped` → her HTTP request için **tek instance**
+
+---
+
+## 7️⃣ Controller İçinde Kullanım
+
+📄 `PricingController.cs`
+
+```csharp
+using Microsoft.AspNetCore.Mvc;
+using Pricing;
+
+[ApiController]
+[Route("api/pricing")]
+public class PricingController : ControllerBase
+{
+    private readonly IPricingService _pricingService;
+
+    public PricingController(IPricingService pricingService)
+    {
+        _pricingService = pricingService;
+    }
+
+    [HttpGet("{price}")]
+    public decimal Get(decimal price)
+    {
+        return _pricingService.CalculateTotal(price);
+    }
+}
+```
+
+---
+
+## 8️⃣ Test Etme
+
+```bash
+dotnet run --project Shop.Api
+```
+
+Tarayıcı:
+```text
+https://localhost:5001/api/pricing/100
+```
+
+Çıktı:
+```text
+120
+```
+
+---
+
+## 9️⃣ Neden AddScoped?
+
+| Lifetime | Durum |
+|---|---|
+| Singleton | ❌ State riski |
+| Scoped | ✅ Request bazlı |
+| Transient | ⚠️ Gereksiz instance |
+
+➡️ **Business servisler için Scoped en doğru tercihtir**
+
+---
+
+## 🔟 Gerçek Proje İpucu
+
+Clean Architecture’da:
+```text
+Application → Interface
+Infrastructure → Implementation
+API → AddScoped
+```
+
+---
+# Mini Örnek – classlib + DbContext (AddDbContext)
+
+Bu mini örnek, **Entity Framework Core DbContext**’in
+bir **class library (classlib)** içinde tanımlanıp
+**API tarafında AddDbContext ile bağlanmasını** gösterir.
+
+---
+
+## 1️⃣ Senaryo
+
+- Veritabanı erişimi **classlib** içinde olacak
+- API sadece DI ve HTTP ile ilgilenecek
+- DbContext **Scoped** olarak yönetilecek
+
+➡️ Gerçek dünya Clean Architecture yaklaşımı
+
+---
+
+## 2️⃣ Infrastructure Class Library Oluşturma
+
+```bash
+dotnet new classlib -n DataAccess
+```
+
+---
+
+## 3️⃣ EF Core Paketlerini Ekleme (classlib)
+
+```bash
+dotnet add DataAccess package Microsoft.EntityFrameworkCore
+dotnet add DataAccess package Microsoft.EntityFrameworkCore.SqlServer
+dotnet add DataAccess package Microsoft.EntityFrameworkCore.Design
+```
+
+---
+
+## 4️⃣ Entity Tanımı (classlib)
+
+📄 `Entities/User.cs`
+
+```csharp
+namespace DataAccess.Entities;
+
+public class User
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = default!;
+}
+```
+
+---
+
+## 5️⃣ DbContext Tanımı (classlib)
+
+📄 `AppDbContext.cs`
+
+```csharp
+using Microsoft.EntityFrameworkCore;
+using DataAccess.Entities;
+
+namespace DataAccess;
+
+public class AppDbContext : DbContext
+{
+    public AppDbContext(DbContextOptions<AppDbContext> options)
+        : base(options)
+    {
+    }
+
+    public DbSet<User> Users => Set<User>();
+}
+```
+
+➡️ DbContext **classlib içinde**, DI yok.
+
+---
+
+## 6️⃣ API Projesi Oluşturma
+
+```bash
+dotnet new webapi -n Users.Api
+```
+
+---
+
+## 7️⃣ Classlib Referans Ekleme
+
+```bash
+dotnet add Users.Api reference DataAccess
+```
+
+---
+
+## 8️⃣ Program.cs – AddDbContext
+
+📄 `Program.cs`
+
+```csharp
+using DataAccess;
+using Microsoft.EntityFrameworkCore;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("Default")
+    ));
+
+builder.Services.AddControllers();
+
+var app = builder.Build();
+app.MapControllers();
+app.Run();
+```
+
+🔹 `AddDbContext` → **Scoped**
+🔹 Request başına tek DbContext
+
+---
+
+## 9️⃣ appsettings.json
+
+```json
+{
+  "ConnectionStrings": {
+    "Default": "Server=.;Database=UsersDb;Trusted_Connection=True;"
+  }
+}
+```
+
+---
+
+## 🔟 DbContext Kullanımı (Controller)
+
+📄 `UsersController.cs`
+
+```csharp
+using Microsoft.AspNetCore.Mvc;
+using DataAccess;
+
+[ApiController]
+[Route("api/users")]
+public class UsersController : ControllerBase
+{
+    private readonly AppDbContext _context;
+
+    public UsersController(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    [HttpGet]
+    public IEnumerable<object> Get()
+    {
+        return _context.Users
+            .Select(u => new { u.Id, u.Name })
+            .ToList();
+    }
+}
+```
+
+---
+
+## 1️⃣1️⃣ Migration Oluşturma (CLI)
+
+```bash
+dotnet tool install dotnet-ef
+dotnet ef migrations add InitialCreate \
+  --project DataAccess \
+  --startup-project Users.Api
+```
+
+Database update:
+```bash
+dotnet ef database update
+```
+
+---
+
+## 1️⃣2️⃣ Neden AddDbContext Scoped?
+
+❌ Singleton → Thread-safe değil  
+❌ Transient → Connection overhead  
+✅ Scoped → Request bazlı, güvenli
+
+---
+
+## 1️⃣3️⃣ Gerçek Proje İpucu
+
+Clean Architecture:
+```text
+Infrastructure → DbContext
+Application    → Interface
+API            → AddDbContext
+```
+
+---
+
+# Mini Örnek – classlib + Repository Pattern
+
+Bu mini örnek, **Repository Pattern**’in
+bir **class library (classlib)** içinde nasıl uygulanacağını
+ve API tarafından nasıl kullanılacağını gösterir.
+
+---
+
+## 1️⃣ Senaryo
+
+- Veritabanı erişimi EF Core ile yapılacak
+- DbContext doğrudan API’de kullanılmayacak
+- API → Repository arayüzü ile konuşacak
+
+➡️ Amaç: **gevşek bağlılık + test edilebilirlik**
+
+---
+
+## 2️⃣ Proje Yapısı
+
+```text
+MySolution
+ ├─ MyApp.Api
+ ├─ MyApp.Domain        (Entities)
+ ├─ MyApp.Application   (Interfaces)
+ └─ MyApp.Infrastructure (EF + Repository)
+```
+
+---
+
+## 3️⃣ Domain – Entity (classlib)
+
+📄 `User.cs`
+
+```csharp
+namespace MyApp.Domain;
+
+public class User
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = default!;
+}
+```
+
+---
+
+## 4️⃣ Application – Repository Interface (classlib)
+
+📄 `IUserRepository.cs`
+
+```csharp
+using MyApp.Domain;
+
+namespace MyApp.Application;
+
+public interface IUserRepository
+{
+    Task<IEnumerable<User>> GetAllAsync();
+    Task<User?> GetByIdAsync(int id);
+    Task AddAsync(User user);
+}
+```
+
+➡️ **EF, DbContext yok**
+
+---
+
+## 5️⃣ Infrastructure – DbContext (classlib)
+
+📄 `AppDbContext.cs`
+
+```csharp
+using Microsoft.EntityFrameworkCore;
+using MyApp.Domain;
+
+namespace MyApp.Infrastructure;
+
+public class AppDbContext : DbContext
+{
+    public AppDbContext(DbContextOptions<AppDbContext> options)
+        : base(options) { }
+
+    public DbSet<User> Users => Set<User>();
+}
+```
+
+---
+
+## 6️⃣ Infrastructure – Repository Implementasyonu
+
+📄 `UserRepository.cs`
+
+```csharp
+using Microsoft.EntityFrameworkCore;
+using MyApp.Application;
+using MyApp.Domain;
+
+namespace MyApp.Infrastructure;
+
+public class UserRepository : IUserRepository
+{
+    private readonly AppDbContext _context;
+
+    public UserRepository(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<IEnumerable<User>> GetAllAsync()
+    {
+        return await _context.Users.AsNoTracking().ToListAsync();
+    }
+
+    public async Task<User?> GetByIdAsync(int id)
+    {
+        return await _context.Users.FindAsync(id);
+    }
+
+    public async Task AddAsync(User user)
+    {
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+    }
+}
+```
+
+---
+
+## 7️⃣ API – DI Kayıtları (Program.cs)
+
+```csharp
+using MyApp.Application;
+using MyApp.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+```
+
+---
+
+## 8️⃣ API – Controller Kullanımı
+
+📄 `UsersController.cs`
+
+```csharp
+using Microsoft.AspNetCore.Mvc;
+using MyApp.Application;
+using MyApp.Domain;
+
+[ApiController]
+[Route("api/users")]
+public class UsersController : ControllerBase
+{
+    private readonly IUserRepository _repo;
+
+    public UsersController(IUserRepository repo)
+    {
+        _repo = repo;
+    }
+
+    [HttpGet]
+    public async Task<IEnumerable<User>> Get()
+    {
+        return await _repo.GetAllAsync();
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Post(User user)
+    {
+        await _repo.AddAsync(user);
+        return Ok();
+    }
+}
+```
+
+---
+
+## 9️⃣ Repository Pattern Neden?
+
+❌ DbContext’i her yerde kullanmak  
+❌ EF’e sıkı bağımlılık  
+
+✅ Interface ile soyutlama  
+✅ Testlerde mock repository  
+✅ EF değişse bile Application bozulmaz  
+
+---
+
+## 🔟 Repository + DI Lifetime
+
+- DbContext → Scoped
+- Repository → Scoped
+
+```csharp
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+```
+
+---
+
+## 1️⃣1️⃣ Gerçek Proje İpucu
+
+- Application → sadece interface
+- Infrastructure → EF + implementasyon
+- API → sadece DI + HTTP
+
+
+
+---
+
+# Scoped mi Singleton mı? (Mini Cheat Sheet)
+
+Bu doküman, **Dependency Injection lifetime** kararını hızlı ve net vermen için hazırlanmıştır.
+
+---
+
+## Altın Kural
+
+> **Request / DbContext / kullanıcıya bağlıysa → Scoped**  
+> **Stateless / cache / config ise → Singleton**
+
+---
+
+## Lifetime Türleri
+
+| Lifetime | Ömür | Ne Zaman |
+|---|---|---|
+| Singleton | App boyunca | Stateless, cache, config |
+| Scoped | Request boyunca | DbContext, repository |
+| Transient | Her resolve | Hafif, stateless |
+
+---
+
+## Ne Zaman Scoped?
+
+Aşağıdakilerden biri varsa **Scoped**:
+
+- DbContext kullanıyorsa
+- Repository ise
+- Business logic içeriyorsa
+- Transaction yönetiyorsa
+- Request bazlı state varsa
+
+```csharp
+builder.Services.AddScoped<AppDbContext>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+```
+
+---
+
+## Ne Zaman Singleton?
+
+Aşağıdakilerden hepsi sağlanıyorsa **Singleton**:
+
+- Stateless
+- Thread-safe
+- DbContext KULLANMIYOR
+- Request bağımsız
+
+```csharp
+builder.Services.AddSingleton<ICacheService, MemoryCacheService>();
+builder.Services.AddSingleton<IClock, SystemClock>();
+```
+
+---
+
+## En Büyük Hata ❌
+
+Singleton içine Scoped enjekte etmek:
+
+```csharp
+// HATALI
+builder.Services.AddSingleton<MyService>();
+
+public MyService(AppDbContext context) { }
+```
+
+---
+
+## Doğru Çözüm
+
+### Çözüm 1 – Scoped Yap
+
+```csharp
+builder.Services.AddScoped<MyService>();
+```
+
+### Çözüm 2 – Factory Kullan
+
+```csharp
+builder.Services.AddDbContextFactory<AppDbContext>();
+```
+
+---
+
+## Karar Ağacı
+
+```
+DbContext var mı?
+ └─ EVET → Scoped
+
+Request’e bağlı mı?
+ └─ EVET → Scoped
+
+Stateless mi?
+ └─ EVET → Singleton
+
+Thread-safe mi?
+ └─ HAYIR → Singleton OLMAZ
+```
+
+---
+
+## Gerçek Hayat Tablosu
+
+| Servis | Lifetime |
+|---|---|
+| DbContext | Scoped |
+| Repository | Scoped |
+| Business Service | Scoped |
+| Cache | Singleton |
+| Logger | Singleton |
+| HttpClient | Singleton |
+| BackgroundService | Singleton |
+
+---
+
+## Not (BackgroundService)
+
+BackgroundService **her zaman Singleton**’dır.  
+DbContext **doğrudan enjekte edilmez**.
+
+---
+
+# DI Lifetime Hataları (Gerçek Bug Örnekleri)
+
+## Hata 1 – Singleton + DbContext ❌
+Runtime exception + data corruption.
+
+## Hata 2 – Transient DbContext ❌
+Connection pool şişer.
+
+## Hata 3 – Scoped servis singleton içinde ❌
+Memory leak + race condition.
+
+## Altın Kural
+> DbContext ve Repository **her zaman Scoped**
+
+
+# Mini Örnek – Seed Data (DbContext + DI + EF Core)
+
+Bu doküman, **Entity Framework Core** kullanarak
+uygulama ilk ayağa kalktığında **seed (başlangıç verisi)** eklemenin
+en temiz ve güvenli yollarını gösterir.
+
+---
+
+## 1️⃣ Seed Nedir?
+
+Seed:
+- Uygulama ilk çalıştığında
+- Veritabanı boşsa
+- Varsayılan kayıtların eklenmesidir
+
+Örnek:
+- Admin user
+- Varsayılan roller
+- Sabit lookup tabloları
+
+---
+
+## 2️⃣ Seed Ne Zaman Kullanılır?
+
+✅ Kullan:
+- Lookup data (Role, Status, Category)
+- Default admin
+- Test / demo data
+
+❌ Kullanma:
+- Büyük production dataları
+- Kullanıcıya özel data
+
+---
+
+## 3️⃣ Yöntem 1 – DbContext OnModelCreating (Statik Seed)
+
+📄 `AppDbContext.cs`
+
+```csharp
+protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    modelBuilder.Entity<Role>().HasData(
+        new Role { Id = 1, Name = "Admin" },
+        new Role { Id = 2, Name = "User" }
+    );
+}
+```
+
+📌 Özellikler:
+- Migration’a yazılır
+- Değişiklik migration gerektirir
+- Lookup data için idealdir
+
+---
+
+## 4️⃣ Yöntem 2 – Program.cs Seed (En Yaygın)
+
+📄 `Program.cs`
+
+```csharp
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    context.Database.Migrate();
+
+    if (!context.Users.Any())
+    {
+        context.Users.Add(new User
+        {
+            Name = "Admin"
+        });
+
+        context.SaveChanges();
+    }
+}
+```
+
+📌 Özellikler:
+- Runtime çalışır
+- Esnek
+- Production’da kontrollü kullanılmalı
+
+---
+
+## 5️⃣ Yöntem 3 – Seed Service (EN TEMİZ YÖNTEM)
+
+### Interface (Application)
+
+```csharp
+public interface IDataSeeder
+{
+    Task SeedAsync();
+}
+```
+
+### Implementasyon (Infrastructure)
+
+```csharp
+public class DataSeeder : IDataSeeder
+{
+    private readonly AppDbContext _context;
+
+    public DataSeeder(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task SeedAsync()
+    {
+        if (!_context.Users.Any())
+        {
+            _context.Users.Add(new User { Name = "Admin" });
+            await _context.SaveChangesAsync();
+        }
+    }
+}
+```
+
+### DI Kaydı
+
+```csharp
+builder.Services.AddScoped<IDataSeeder, DataSeeder>();
+```
+
+### Program.cs Çağırma
+
+```csharp
+using (var scope = app.Services.CreateScope())
+{
+    var seeder = scope.ServiceProvider.GetRequiredService<IDataSeeder>();
+    await seeder.SeedAsync();
+}
+```
+
+📌 **Clean Architecture uyumlu**
+
+---
+
+## 6️⃣ Production İçin Güvenlik
+
+```csharp
+if (app.Environment.IsDevelopment())
+{
+    // seed çalıştır
+}
+```
+
+veya:
+
+```csharp
+if (!context.Users.Any())
+```
+
+---
+
+## 7️⃣ Seed + Migration Akışı
+
+```bash
+dotnet ef migrations add InitialCreate
+dotnet ef database update
+dotnet run
+```
+
+---
+
+## 8️⃣ En Sık Yapılan Hatalar ❌
+
+- Her startup’ta duplicate data
+- Production’da test data
+- Seed logic’i DbContext içine gömmek
+- Singleton seeder kullanmak
+
+---
+
+# SeedService Nedir? (Clean Architecture Uyumlu Seed)
+
+Bu doküman, **SeedService** yaklaşımını
+neden ve nasıl kullanman gerektiğini **net ve pratik** şekilde açıklar.
+
+---
+
+## 1️⃣ SeedService Nedir?
+
+**SeedService**, veritabanına başlangıç verilerini eklemek için yazılan
+**ayrı bir servistir**.
+
+Amaç:
+- Seed logic’i `Program.cs`’ten ayırmak
+- Test edilebilirlik
+- Clean Architecture uyumu
+- Kontrol edilebilir seed süreci
+
+---
+
+## 2️⃣ Neden SeedService Kullanılır?
+
+❌ Yanlış yaklaşımlar:
+- Seed kodunu `DbContext` içine yazmak
+- `Program.cs`’i şişirmek
+- Her startup’ta kontrolsüz veri eklemek
+
+✅ SeedService ile:
+- Seed mantığı **tek yerde**
+- Kolay test edilir
+- Ortam bazlı (Dev / Prod) kontrol edilir
+
+---
+
+## 3️⃣ Katmanlı Yapı (Önerilen)
+
+```text
+Application      → Interface
+Infrastructure   → Implementation
+API              → Çalıştırır
+```
+
+---
+
+## 4️⃣ Application – Interface
+
+📄 `IDataSeeder.cs`
+
+```csharp
+namespace MyApp.Application;
+
+public interface IDataSeeder
+{
+    Task SeedAsync();
+}
+```
+
+➡️ **Hiç EF, DbContext yok**
+
+---
+
+## 5️⃣ Infrastructure – Implementasyon
+
+📄 `DataSeeder.cs`
+
+```csharp
+using MyApp.Application;
+using MyApp.Domain;
+
+namespace MyApp.Infrastructure;
+
+public class DataSeeder : IDataSeeder
+{
+    private readonly AppDbContext _context;
+
+    public DataSeeder(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task SeedAsync()
+    {
+        if (!_context.Roles.Any())
+        {
+            _context.Roles.AddRange(
+                new Role { Name = "Admin" },
+                new Role { Name = "User" }
+            );
+
+            await _context.SaveChangesAsync();
+        }
+    }
+}
+```
+
+📌 Kurallar:
+- **Idempotent** olmalı (`Any()` kontrolü)
+- DbContext → Scoped
+
+---
+
+## 6️⃣ DI Kaydı
+
+📄 `Infrastructure.DependencyInjection.cs`
+
+```csharp
+services.AddScoped<IDataSeeder, DataSeeder>();
+```
+
+---
+
+## 7️⃣ Program.cs – Seed Çalıştırma
+
+📄 `Program.cs`
+
+```csharp
+using (var scope = app.Services.CreateScope())
+{
+    var seeder = scope.ServiceProvider.GetRequiredService<IDataSeeder>();
+    await seeder.SeedAsync();
+}
+```
+
+➡️ Program.cs **sade kalır**
+
+---
+
+## 8️⃣ Environment Bazlı Seed
+
+```csharp
+if (app.Environment.IsDevelopment())
+{
+    await seeder.SeedAsync();
+}
+```
+
+veya:
+
+```csharp
+if (!context.Roles.Any())
+```
+
+---
+
+## 9️⃣ SeedService Lifetime
+
+| Servis | Lifetime |
+|---|---|
+| DbContext | Scoped |
+| SeedService | Scoped |
+
+❌ Singleton OLMAZ
+
+---
+
+## 🔟 En Sık Yapılan Hatalar
+
+- SeedService’i Singleton yapmak
+- Her startup’ta duplicate data
+- Production’a test seed’i sokmak
+- Migration yerine seed ile schema yönetmek
+
+---
+
+## 1️⃣1️⃣ Ne Zaman SeedService?
+
+✅ Kullan:
+- Admin / Role seed
+- Demo data
+- Environment bazlı seed
+
+❌ Kullanma:
+- Büyük bulk data
+- Gerçek user dataları
+
+---
+
+
 
 
 
