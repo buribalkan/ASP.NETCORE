@@ -896,6 +896,91 @@ var sql = query.ToQueryString();
 ---
 
 
+# LINQ Cheat-Sheet (Tek Sayfa)
+
+Bu doküman LINQ’i **hızlıca hatırlamak**, doğru operatörü
+doğru yerde kullanmak için hazırlanmıştır.
+
+---
+
+## 🔹 Temel Operatörler
+
+| Amaç | Operatör | Not |
+|---|---|---|
+| Filtre | `Where` | DB’de çalıştır |
+| Şekil değiştir | `Select` | Projection = performans |
+| Düzleştir | `SelectMany` | Flat map |
+| Sırala | `OrderBy` | `ThenBy` ile devam |
+| Grupla | `GroupBy` | Raporlama |
+| Birleştir | `Join` | Çoğu zaman gerekmez |
+
+---
+
+## 🔹 Tek Kayıt / Kontrol
+
+| Senaryo | Kullan |
+|---|---|
+| Var mı? | `Any()` |
+| İlk kayıt | `FirstOrDefault()` |
+| Tek kayıt (unique) | `Single()` |
+| Hepsi sağlıyor mu | `All()` |
+
+❌ `Count() > 0` kullanma  
+❌ Garantisi yokken `Single()` kullanma
+
+---
+
+## 🔹 Select vs SelectMany
+
+```csharp
+orders.Select(o => o.Items);      // List<List<Item>>
+orders.SelectMany(o => o.Items); // List<Item>
+```
+
+> **SelectMany = flatten**
+
+---
+
+## 🔹 LINQ + EF Core Altın Kuralları
+
+- `IQueryable`’ı koru
+- `ToList()` **en sonda**
+- Filtre DB’de yapılır
+- Projection (`Select`) kullan
+- `Any()` → `EXISTS`
+- `Include` minimum
+
+---
+
+## 🔹 En Sık Yapılan Hatalar ❌
+
+- Erken `ToList()`
+- Gereksiz `Include`
+- Client-side filtering
+- N+1 problemi
+- IQueryable → IEnumerable erken düşürmek
+
+---
+
+## 🔹 Performans Kıyas
+
+| Yanlış | Doğru |
+|---|---|
+| `Count() > 0` | `Any()` |
+| `ToList().Where()` | `Where().ToList()` |
+| Entity dön | DTO dön |
+
+---
+
+## 🔹 EF SQL Görmek
+
+```csharp
+query.ToQueryString();
+```
+
+---
+
+
 
 
 
