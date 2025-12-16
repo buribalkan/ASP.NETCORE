@@ -22,32 +22,10 @@ için kritik öneme sahiptir.
 
 > dotnet CLI kullanımı için SDK gereklidir.
 
----
-
-## 1.3 .NET SDK Kurulumu
-
-### Windows
-https://dotnet.microsoft.com/download
-
-### Linux (Ubuntu)
-```bash
-sudo apt update
-sudo apt install dotnet-sdk-8.0
-```
-
-### macOS (Homebrew)
-```bash
-brew install dotnet
-```
-
-Kurulum doğrulama:
-```bash
-dotnet --version
-```
 
 ---
 
-## 1.4 dotnet CLI Komut Yapısı
+## 1.3 dotnet CLI Komut Yapısı
 
 ```bash
 dotnet <komut> [opsiyonlar]
@@ -62,7 +40,7 @@ dotnet run
 
 ---
 
-## 1.5 Yardım Komutları
+## 1.4 Yardım Komutları
 
 ```bash
 dotnet --help
@@ -72,7 +50,7 @@ dotnet build --help
 
 ---
 
-## 1.6 dotnet new – Proje Oluşturma
+## 1.5 dotnet new – Proje Oluşturma
 
 Mevcut template’ler:
 ```bash
@@ -94,7 +72,7 @@ HelloCli/
 
 ---
 
-## 1.7 Uygulamayı Çalıştırma
+## 1.6 Uygulamayı Çalıştırma
 
 ```bash
 dotnet run
@@ -105,14 +83,7 @@ dotnet run
 Hello, World!
 ```
 
----
 
-## 1.8 Chapter 1 Özet
-
-- .NET CLI nedir
-- SDK kurulumu
-- Temel komutlar
-- İlk uygulama çalıştırma
 
 ---
 
@@ -242,15 +213,6 @@ dotnet build MySolution.sln
 
 Tüm projeler tek seferde derlenir.
 
----
-
-## 2.10 Chapter 2 Özet
-
-- dotnet restore
-- dotnet build
-- dotnet clean
-- solution oluşturma ve yönetme
-- CI/CD için build akışı
 
 ---
 # Chapter 3 – dotnet run, publish & Environment Yönetimi
